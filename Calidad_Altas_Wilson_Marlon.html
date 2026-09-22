@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calidad de altas · Prosegur Alarmas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#ECEEF1;--surface:#FFFFFF;--surface2:#F5F6F8;--ink:#1F2429;--muted:#5E6873;--line:#D5DAE0;
+  --signal:#FFD100;--signal-ink:#1F2429;--ok:#1B7F4F;--ok-bg:#E1F3E9;--bad:#B9352A;--bad-bg:#FBE4E1;--warn:#9A6400;--warn-bg:#FFF1CC;--info:#1F5F9A;--info-bg:#E2EDF8;
+  --wa:#128C4B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#15191D;--surface:#1E2328;--surface2:#262C32;--ink:#E8ECEF;--muted:#9AA5AF;--line:#343C44;
+  --ok:#5CCB93;--ok-bg:#16352A;--bad:#F08A7F;--bad-bg:#3B1F1C;--warn:#F2C45A;--warn-bg:#3A2F13;--info:#82B6EA;--info-bg:#18293A;--wa:#3FCB7C;}}
+:root[data-theme="dark"]{--bg:#15191D;--surface:#1E2328;--surface2:#262C32;--ink:#E8ECEF;--muted:#9AA5AF;--line:#343C44;
+  --ok:#5CCB93;--ok-bg:#16352A;--bad:#F08A7F;--bad-bg:#3B1F1C;--warn:#F2C45A;--warn-bg:#3A2F13;--info:#82B6EA;--info-bg:#18293A;--wa:#3FCB7C;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45}
+h1,h2,h3,.cond{font-family:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;letter-spacing:.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--info);outline-offset:2px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--signal);color:var(--signal-ink);padding:.6rem 1rem .5rem}
+.top-row{display:flex;align-items:center;gap:.75rem;max-width:1100px;margin:0 auto}
+.brand{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.35rem;line-height:1;margin-right:auto}
+.brand small{display:block;font-family:"Barlow",sans-serif;font-weight:500;font-size:.78rem;opacity:.8}
+.sync{font-size:.72rem;font-weight:600;padding:.2rem .55rem;border-radius:999px;background:rgba(0,0,0,.14);color:var(--signal-ink);white-space:nowrap}
+.sync[data-state="ok"]{background:#1B7F4F;color:#fff}
+.sync[data-state="off"]{background:#B9352A;color:#fff}
+.logout{border:0;background:rgba(0,0,0,.14);color:var(--signal-ink);border-radius:999px;padding:.25rem .6rem;font-weight:600;font-size:.78rem}
+.login{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:1.2rem;background:var(--bg)}
+.login[hidden]{display:none}
+.login-card{background:var(--surface);border-radius:14px;padding:1.6rem 1.4rem;width:100%;max-width:360px;display:flex;flex-direction:column;gap:.7rem;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.login-brand{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:1.8rem;line-height:1}
+.login-sub{color:var(--muted);font-size:.85rem;margin-top:-.3rem;margin-bottom:.4rem}
+.login-card .f input{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:.55rem .7rem;color:var(--ink);font-size:1rem;width:100%}
+.login-card .btn{justify-content:center;margin-top:.3rem;padding:.6rem}
+.login-err{background:var(--bad-bg);color:var(--bad);border-radius:8px;padding:.5rem .7rem;font-size:.88rem;margin:0}
+.login-note{color:var(--muted);font-size:.78rem;text-align:center;margin:.3rem 0 0}
+.who{display:flex;background:rgba(0,0,0,.12);border-radius:999px;padding:3px}
+.who button{border:0;background:transparent;padding:.3rem .8rem;border-radius:999px;font-weight:600;color:var(--signal-ink)}
+.who button[aria-pressed="true"]{background:var(--signal-ink);color:var(--signal)}
+.tabs{display:flex;gap:.25rem;max-width:1100px;margin:.45rem auto 0;overflow-x:auto}
+.tabs button{border:0;background:transparent;padding:.35rem .7rem;font-weight:600;border-bottom:3px solid transparent;white-space:nowrap;color:var(--signal-ink)}
+.tabs button[aria-selected="true"]{border-bottom-color:var(--signal-ink)}
+main{max-width:1100px;margin:0 auto;padding:1rem}
+.banner{background:var(--warn-bg);color:var(--warn);padding:.6rem .8rem;border-radius:8px;margin-bottom:1rem;font-size:.9rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.5rem;margin-bottom:1rem}
+.stat{background:var(--surface);border-radius:8px;padding:.55rem .75rem;border-left:4px solid var(--line)}
+.stat b{font-family:"Barlow Condensed",sans-serif;font-size:1.7rem;display:block;line-height:1.1}
+.stat span{font-size:.8rem;color:var(--muted)}
+.stat.pend{border-color:var(--signal)}.stat.okk{border-color:var(--ok)}.stat.wo{border-color:var(--bad)}.stat.nc{border-color:var(--muted)}
+.filters{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin-bottom:.75rem}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:.3rem .75rem;font-size:.88rem;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.search{flex:1 1 200px;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:.45rem .7rem}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:1rem}
+@media (min-width:900px){.layout{grid-template-columns:minmax(0,380px) minmax(0,1fr)}}
+.list{display:flex;flex-direction:column;gap:2px;background:var(--line);border-radius:10px;overflow:hidden;align-self:start}
+.row{display:grid;grid-template-columns:6px 1fr auto;gap:.7rem;align-items:center;background:var(--surface);padding:.65rem .8rem .65rem 0;border:0;text-align:left;width:100%}
+.row[aria-current="true"]{background:var(--surface2)}
+.row .bar{align-self:stretch;background:var(--line)}
+.row .bar.s-pendiente{background:var(--signal)}.row .bar.s-sin_novedad{background:var(--ok)}.row .bar.s-remoto{background:var(--info)}.row .bar.s-wo{background:var(--bad)}.row .bar.s-no_contesto{background:var(--muted)}
+.row .name{font-weight:600;line-height:1.2}
+.row .meta{font-size:.8rem;color:var(--muted)}
+.tag{display:inline-block;font-size:.72rem;font-weight:600;padding:.08rem .45rem;border-radius:4px;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}.tag.ok{background:var(--ok-bg);color:var(--ok)}.tag.info{background:var(--info-bg);color:var(--info)}.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.empty{background:var(--surface);border-radius:10px;padding:1.5rem;color:var(--muted)}
+.detail{background:var(--surface);border-radius:10px;padding:1rem 1.1rem 1.5rem;align-self:start}
+@media (max-width:899px){.detail{position:fixed;inset:0;align-self:stretch;justify-self:stretch;height:100%;z-index:30;border-radius:0;overflow-y:auto;padding-top:calc(env(safe-area-inset-top,0px) + 1rem);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 2rem)}.detail[hidden]{display:none}}
+@media (min-width:900px){.detail{position:sticky;top:7.2rem;max-height:calc(100vh - 8rem);overflow-y:auto}.back{display:none}}
+.back{border:0;background:var(--surface2);border-radius:8px;padding:.35rem .7rem;margin-bottom:.6rem;font-weight:600}
+.dh h2{margin:0;font-size:1.7rem;line-height:1.1}
+.dh .sub{color:var(--muted);font-size:.9rem;margin-top:.2rem}
+.nameedit{border:1px dashed var(--line);background:transparent;border-radius:6px;padding:.1rem .4rem;font-family:"Barlow Condensed",sans-serif;font-size:1.7rem;font-weight:700;width:100%;max-width:26rem}
+.actions{display:flex;flex-wrap:wrap;gap:.5rem;margin:.9rem 0}
+.btn{display:inline-flex;align-items:center;gap:.4rem;border:1px solid var(--line);background:var(--surface2);border-radius:8px;padding:.5rem .85rem;font-weight:600;text-decoration:none;color:var(--ink);font-size:.93rem}
+.btn.primary{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.small{padding:.25rem .6rem;font-size:.82rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+section.blk{border-top:1px solid var(--line);padding-top:.9rem;margin-top:1rem}
+section.blk h3{margin:0 0 .5rem;font-size:1.25rem}
+.hint{font-size:.85rem;color:var(--muted);margin:.1rem 0 .6rem}
+.fallo{border-left:4px solid var(--bad);background:var(--bad-bg);padding:.6rem .75rem;border-radius:0 8px 8px 0;margin-bottom:.5rem}
+.fallo b{color:var(--bad)}
+.fallo p{margin:.25rem 0;font-size:.9rem}
+.qgrid{display:flex;flex-direction:column;gap:.35rem}
+.q{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;padding:.35rem 0;border-bottom:1px dashed var(--line)}
+.q:last-child{border-bottom:0}
+.q .lbl{font-size:.93rem}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;flex-shrink:0}
+.seg button{border:0;background:var(--surface);padding:.3rem .6rem;font-size:.84rem;font-weight:600;min-width:2.6rem}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"].v-ok,.seg button[aria-pressed="true"].v-si{background:var(--ok);color:#fff}
+.seg button[aria-pressed="true"].v-no{background:var(--bad);color:#fff}
+.seg button[aria-pressed="true"].v-na{background:var(--muted);color:#fff}
+.q .extra{grid-column:1/-1}
+.speech{background:var(--surface2);border-radius:8px;padding:.75rem .9rem;font-size:.95rem}
+.speech p{margin:.3rem 0}
+details summary{cursor:pointer;font-weight:600;color:var(--info)}
+.res{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.4rem}
+.res button{border:2px solid var(--line);background:var(--surface);border-radius:8px;padding:.55rem .5rem;font-weight:600;text-align:left;font-size:.92rem}
+.res button[aria-pressed="true"]{border-color:var(--ink);background:var(--surface2)}
+.decision{margin-top:.75rem;padding:.75rem .9rem;border-radius:8px;font-weight:600}
+.decision.d-wo{background:var(--bad-bg);color:var(--bad)}.decision.d-rev{background:var(--warn-bg);color:var(--warn)}.decision.d-ok{background:var(--ok-bg);color:var(--ok)}.decision.d-na{background:var(--surface2);color:var(--muted)}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.6rem;margin-top:.6rem}
+label.f{display:flex;flex-direction:column;gap:.2rem;font-size:.82rem;color:var(--muted);font-weight:500}
+label.f input,label.f select,label.f textarea,.inp{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:.45rem .6rem;color:var(--ink);font-size:.95rem;width:100%}
+textarea{min-height:4.5rem;resize:vertical}
+.counter{display:inline-flex;align-items:center;gap:.5rem}
+.counter b{font-family:"Barlow Condensed",sans-serif;font-size:1.4rem;min-width:1.5rem;text-align:center}
+.card{background:var(--surface);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem}
+.card h2{margin:0 0 .4rem;font-size:1.5rem}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:1.2rem;text-align:center;background:var(--surface2)}
+.drop.over{border-color:var(--ink)}
+.filelist{margin:.6rem 0 0;padding:0;list-style:none;font-size:.9rem}
+.filelist li{padding:.2rem 0}
+table.t{border-collapse:collapse;width:100%;font-size:.85rem}
+.tw{overflow-x:auto}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:.35rem .5rem;text-align:left;white-space:nowrap}
+table.t th{font-weight:600;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 1rem);background:var(--ink);color:var(--surface);padding:.6rem 1rem;border-radius:8px;z-index:50;font-weight:600;max-width:90vw}
+.toast[hidden]{display:none}
+.saved{font-size:.78rem;color:var(--muted)}
+.row2{display:flex;gap:.6rem;flex-wrap:wrap;align-items:end}
+@media (prefers-reduced-motion:no-preference){.detail{transition:none}}
+</style>
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <form class="login-card" id="loginForm">
+    <div class="login-brand">Calidad de altas</div>
+    <div class="login-sub">Aseguramiento de calidad · Prosegur Alarmas</div>
+    <label class="f">Correo<input id="loginEmail" type="email" autocomplete="username" required></label>
+    <label class="f">Contraseña<input id="loginPass" type="password" autocomplete="current-password" required></label>
+    <p id="loginErr" class="login-err" hidden></p>
+    <button class="btn primary" id="loginBtn" type="submit">Entrar</button>
+    <p class="login-note">Acceso solo para el equipo de calidad.</p>
+  </form>
+</div>
+<header class="top">
+  <div class="top-row">
+    <div class="brand">Calidad de altas<small>Aseguramiento de calidad · Prosegur Alarmas</small></div>
+    <span id="sync" class="sync" data-state="local" title="Estado de sincronización">Local</span>
+    <button id="logout" class="logout" hidden>Salir</button>
+    <div class="who" role="group" aria-label="¿Quién está gestionando?">
+      <button data-me="Wilson" aria-pressed="false">Wilson</button>
+      <button data-me="Marlon" aria-pressed="false">Marlon</button>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="gestion" aria-selected="true">Gestión</button>
+    <button role="tab" data-tab="cargar" aria-selected="false">Cargar base</button>
+  </nav>
+</header>
+<main>
+  <div id="modeBanner" class="banner" hidden></div>
+
+  <!-- GESTIÓN -->
+  <div data-panel="gestion">
+    <div class="stats" id="stats"></div>
+    <div class="filters">
+      <div class="chips" style="display:flex;gap:.35rem;flex-wrap:wrap" id="fWho"></div>
+      <div style="display:flex;gap:.35rem;flex-wrap:wrap" id="fState"></div>
+      <select class="inp" id="fLote" style="width:auto" aria-label="Día de altas"></select>
+      <input class="search" id="q" type="search" placeholder="Buscar nombre, celular, código o WO">
+    </div>
+    <div class="layout">
+      <div id="list" class="list"></div>
+      <div id="detail" class="detail" hidden></div>
+    </div>
+  </div>
+
+  <!-- CARGAR -->
+  <div data-panel="cargar" hidden>
+    <div class="card">
+      <h2>Cargar la base del día</h2>
+      <p class="hint">Sube el reporte de altas que llega al correo (.xls) y, si lo tienes, el archivo de validación de fallos (.csv). Se cruzan por código de conexión.</p>
+      <div class="drop" id="drop">
+        <p style="margin:.2rem 0 .6rem">Arrastra los archivos aquí o</p>
+        <label class="btn primary" style="display:inline-flex">Elegir archivos<input type="file" id="files" multiple accept=".xls,.xlsx,.csv,.html,.htm" hidden></label>
+        <ul class="filelist" id="fileList"></ul>
+      </div>
+      <div id="importOpts" hidden>
+        <div class="fields">
+          <label class="f">Qué altas cargar
+            <select id="impRange">
+              <option value="all">Todas las del archivo</option>
+              <option value="prev">Día hábil anterior (por fecha de instalación)</option>
+              <option value="7">Últimos 7 días</option>
+            </select>
+          </label>
+          <label class="f">Guardar como altas del día<input type="date" id="impLote"></label>
+          <label class="f">Repartir entre
+            <select id="impSplit"><option value="both">Wilson y Marlon (balanceado)</option><option value="Wilson">Solo Wilson</option><option value="Marlon">Solo Marlon</option></select>
+          </label>
+        </div>
+        <label style="display:flex;gap:.5rem;align-items:center;margin-top:.7rem;font-size:.92rem"><input type="checkbox" id="impOnlyInst"> Solo "Instalación + conexión" (excluir conexiones de cartera)</label>
+        <div id="impPreview" style="margin-top:.8rem"></div>
+        <div class="actions"><button class="btn primary" id="impGo">Cargar y repartir</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Exportar</h2>
+      <p class="hint">Genera las filas con las mismas columnas de la hoja "Gestión diaria" del Excel de auditorías, para pegarlas o guardarlas.</p>
+      <div class="row2">
+        <label class="f">Altas del día<select id="expLote"></select></label>
+        <button class="btn primary" id="expXlsx">Descargar Excel</button>
+        <button class="btn" id="expCopy">Copiar filas para pegar en Excel</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Borrar un día</h2>
+      <p class="hint">Si cargaste la base equivocada, borra las altas de ese día. No se puede deshacer.</p>
+      <div class="row2"><label class="f">Altas del día<select id="delLote"></select></label><button class="btn" id="delGo">Borrar ese día</button></div>
+    </div>
+  </div>
+
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- ============================================================= -->
+<!-- CONEXIÓN A GOOGLE (Firebase / Cloud Firestore)                 -->
+<!-- Pega aquí la configuración que te da la consola de Firebase.    -->
+<!-- Mientras diga "PEGAR_AQUI" el tablero funciona en modo local.   -->
+<!-- ============================================================= -->
+<script>
+  window.CA_CONFIG = {
+    apiKey: "PEGAR_AQUI",
+    authDomain: "PEGAR_AQUI.firebaseapp.com",
+    projectId: "PEGAR_AQUI",
+    storageBucket: "PEGAR_AQUI.appspot.com",
+    messagingSenderId: "PEGAR_AQUI",
+    appId: "PEGAR_AQUI"
+  };
+  let __caRes; window.CAfirebaseReady = new Promise(r => __caRes = r); window.CA_setDb = api => __caRes(api);
+</script>
+<script type="module">
+  const cfg = window.CA_CONFIG || {};
+  if (!cfg.apiKey || String(cfg.apiKey).indexOf("PEGAR") === 0) { window.CA_setDb(null); }
+  else {
+    try {
+      const V = "12.19.0";
+      const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+      const { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch } =
+        await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+      const { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } =
+        await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+      const app = initializeApp(cfg);
+      const db = getFirestore(app);
+      const auth = getAuth(app);
+      try { await setPersistence(auth, browserLocalPersistence); } catch(e){}
+      const COL = "clientes";
+      window.CA_setDb({
+        onAuth(cb){ return onAuthStateChanged(auth, cb); },
+        async login(email, pass){ await signInWithEmailAndPassword(auth, email, pass); },
+        logout(){ return signOut(auth); },
+        subscribe(onData, onErr) {
+          return onSnapshot(collection(db, COL),
+            snap => { const o = {}; snap.forEach(d => o[d.id] = d.data()); onData(o); },
+            err => { console.error(err); onErr && onErr(err); });
+        },
+        patch(id, data) { return setDoc(doc(db, COL, id), data, { merge: true }); },
+        set(id, data)   { return setDoc(doc(db, COL, id), data); },
+        del(id)         { return deleteDoc(doc(db, COL, id)); },
+        async batch(items) { const b = writeBatch(db); for (const it of items) b.set(doc(db, COL, it.id), it.data, { merge: true }); await b.commit(); }
+      });
+    } catch (e) { console.error("Firebase no cargó:", e); window.CA_setDb(null); }
+  }
+</script>
+<script>
+(() => {
+"use strict";
+// ---------- Constantes ----------
+const AUD = [["ubic","Ubicación del panel (clara y del panel)"],["rf","Nivel RF sensórica"],["gsm","Señal GPRS / GSM"],["zonas","Configuración de zonas"],["doble","Doble medio"],["tiempos","Tiempo de entrada / salida"],["sirena","Sonido de sirena habilitado"],["fw","Último firmware del panel"]];
+const VID = [["vfw","Último firmware de cada cámara"],["vlinea","Cámara en línea"],["vvel","Test de velocidad"]];
+const QS = [
+ ["app","¿La app Prosegur Smart funciona y conoce sus funcionalidades?","app"],
+ ["armar","¿Puede armar y desarmar sin problema? ¿Sabe cómo hacerlo?","armar"],
+ ["pircam","¿Puede solicitar imágenes desde su PirCam?","pircam"],
+ ["video","¿Puede ver su cámara y el registro de videos pasados? (solo video)","video"],
+ ["clave","¿Sabe cambiar la palabra clave y contraclave?","clave"],
+ ["contacto","¿Sabe agregar un contacto de emergencia?","contacto"],
+ ["estetica","Estética de la instalación, orden, aseo y actitud del técnico: ¿todo bien? (No = tiene PQRS)",null],
+ ["induccion","¿Le dieron inducción de manejo del sistema?","induccion"]];
+const LINKS = [["app","App Prosegur Smart"],["armar","Armar y desarmar"],["pircam","Imágenes PirCam"],["video","Ver cámara y grabaciones"],["clave","Palabra clave y contraclave"],["contacto","Contacto de emergencia"],["induccion","Manejo general del sistema"],["encuesta","Link de calificación del técnico (opcional)"]];
+const RES = [["pendiente","Pendiente"],["sin_novedad","Sin novedad"],["remoto","Solucionado en remoto"],["wo","WO inspección"],["no_contesto","No contestó"]];
+const RESL = Object.fromEntries(RES);
+const GUIA = {
+ "RECEIVER|SUPERV":{t:"La receptora perdió la supervisión del panel.",r:"Revisa en plataforma si el hub está en línea y por qué canal; valida SIM/APN y Ethernet. Pide al cliente reiniciar el router si comunica por internet y confirma que vuelve la supervisión.",w:"No vuelve a supervisar tras reinicio con SIM/APN correctos, o el hub no enciende.",m:"notamos que su panel tuvo intermitencia en la comunicación con nuestra central. ¿Nos ayuda reiniciando su router (desconectarlo 30 segundos y volverlo a conectar)? Le confirmamos apenas se restablezca."},
+ "RECEIVER|NTWK_FTC":{t:"Fallo de comunicación: el panel no logra transmitir por la red.",r:"Valida señal GSM, datos de la SIM, canales (IP/puerto de receptora) y que el doble medio esté activo. Envía un evento de prueba.",w:"Señal GSM insuficiente en el sitio (hay que reubicar panel/antena) o SIM dañada.",m:"estamos validando la comunicación de su panel con nuestra central. ¿Nos confirma si el router de internet está encendido y si el panel sigue en el mismo lugar donde lo dejó el técnico?"},
+ "RECEIVER|DEST_REJECT":{t:"La receptora rechaza los eventos: la cuenta o el destino no coinciden.",r:"Compara el número de cuenta/ID del panel en receptora con lo configurado en el hub. Corrige en remoto y envía evento de prueba.",w:"Casi nunca; es programación. Solo si el panel no acepta la configuración remota.",m:null},
+ "ETHERNET|LINK_ABSENT":{t:"El panel no tiene cable de red conectado o el router no da enlace.",r:"Pregunta si tiene internet y si el cable está conectado al router; guía la reconexión. Si no tiene internet, déjalo anotado (doble medio incompleto).",w:"Cable o puerto dañado, o el cliente pide llevar el cable al router (trabajo físico).",m:"vemos que su panel de alarma no tiene conexión por cable de internet. ¿Nos confirma si el cable de red del panel está conectado al router y si tiene servicio de internet en este momento?"},
+ "SYSTEM|AC":{t:"El panel perdió la alimentación eléctrica.",r:"Pregunta si hubo corte de luz, si el adaptador está conectado y si el toma funciona. Confirma la restauración en plataforma.",w:"Adaptador o fuente dañados, o toma sin energía que no depende del cliente.",m:"su panel de alarma reporta que está sin corriente eléctrica. ¿Hubo algún corte de luz o se desconectó el adaptador? ¿Nos confirma si está conectado?"},
+ "SYSTEM|Baja Batería":{t:"Batería de respaldo del panel baja (común después de un corte de luz).",r:"Confirma que el panel tiene corriente y revisa de nuevo en 24 h.",w:"La alerta sigue con corriente estable (batería defectuosa).",m:null},
+ "FOB|Baja Batería":{t:"El control llavero tiene la pila baja.",r:"Explica el cambio de pila (CR2032) y envía instructivo.",w:"El cliente no puede cambiarla o el control no responde tras el cambio.",m:"su control llavero reporta pila baja. Se cambia fácilmente con una pila CR2032; si quiere le enviamos cómo hacerlo."},
+ "Dispositivo de Detección|TAMPER":{t:"Un sensor tiene la tapa abierta o se desprendió de su base.",r:"Pregunta si el sensor se cayó o lo movieron; guía a presionarlo en su base hasta que cierre.",w:"Base rota, sensor dañado o requiere reinstalación.",m:"uno de sus sensores reporta que se abrió o se desprendió de su base. ¿Nos ayuda revisando si alguno está caído o suelto?"}
+};
+
+// ---------- Utilidades ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+const pad = n => String(n).padStart(2,"0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fmt = s => { if(!s) return ""; const [y,m,d]=s.split("-"); return `${d}/${m}/${y}`; };
+const parseDMY = s => { if(s instanceof Date) return iso(s); const m=String(s||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m?`${m[3]}-${pad(m[2])}-${pad(m[1])}`:""; };
+const longDate = s => { if(!s) return ""; const d=new Date(s+"T12:00:00"); return d.toLocaleDateString("es-CO",{weekday:"long",day:"numeric",month:"long"}); };
+const saludo = () => { const h=new Date().getHours(); return h<12?"buenos días":h<19?"buenas tardes":"buenas noches"; };
+const waNum = c => { let d=String(c||"").replace(/\D/g,""); if(d.length===10 && d[0]==="3") d="57"+d; return d; };
+const waLink = (cel,txt) => `https://wa.me/${waNum(cel)}?text=${encodeURIComponent(txt)}`;
+const zonaDe = dep => !dep ? "Sin dato" : norm(dep).includes("bogot") ? "Bogotá" : "Regional";
+const nomSal = c => !c.nombre ? "" : " " + (c.nombreBase ? c.nombre : c.nombre.split(" ")[0]);
+const toast = msg => { const t=$("#toast"); t.textContent=msg; t.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>t.hidden=true,2600); };
+const deepMerge = (a,b) => { const o={...a}; for(const k in b){ o[k] = (b[k] && typeof b[k]==="object" && !Array.isArray(b[k]) && a && typeof a[k]==="object" && a[k]) ? deepMerge(a[k],b[k]) : b[k]; } return o; };
+const safeId = s => String(s).replace(/[^A-Za-z0-9_\-.~:@+]/g,"_");
+const ls = { get(k,d){ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){return d;} }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} } };
+
+// ---------- Estado ----------
+let me = ls.get("ca_me","");
+let clients = {};           // id -> data
+let asist = {};             // id -> data
+let cfg = {links:{},esp:"",coord:""};
+let sel = null;
+let filt = { who: me || "todos", st: "pendiente", lote: "", q: "" };
+
+let pendingRender = false;
+
+// ---------- Almacenamiento (Google Firestore o local) ----------
+// Si arriba pegaste tu configuración de Firebase, el tablero guarda y lee de
+// Cloud Firestore (una base de datos administrada por Google, no un archivo).
+// Así Wilson y Marlon ven lo mismo en tiempo real en la misma URL.
+// Si no hay configuración, cae a localStorage (solo este equipo).
+const local = { c: ls.get("ca_local_clients",{}) };
+function persistLocal(){ ls.set("ca_local_clients",local.c); }
+let remote = null;                        // API de Firestore cuando está configurado
+let pending = ls.get("ca_pending",[]);    // operaciones sin confirmar (por si se cae la red)
+let opChain = Promise.resolve();
+function savePending(){ ls.set("ca_pending",pending); }
+function setSync(state,txt){ const el=$("#sync"); if(!el) return; el.dataset.state=state; el.textContent=txt; }
+
+function applyOp(op, store){
+  if(op.op==="delete"){ delete store[op.id]; }
+  else if(op.op==="set"){ store[op.id]=op.data; }
+  else if(op.op==="patch"){ store[op.id]=deepMerge(store[op.id]||{},op.data); }
+  else if(op.op==="batch"){ for(const it of op.items){ store[it.id]=deepMerge(store[it.id]||{},it.data); } }
+}
+async function runOp(op){
+  if(op.op==="patch") return remote.patch(op.id,op.data);
+  if(op.op==="set")   return remote.set(op.id,op.data);
+  if(op.op==="delete")return remote.del(op.id);
+  if(op.op==="batch") return remote.batch(op.items);
+}
+async function flushPending(){
+  if(!remote || !pending.length) return;
+  try{ while(pending.length){ await runOp(pending[0]); pending.shift(); savePending(); } setSync("ok","Sincronizado"); }
+  catch(e){ console.error(e); setSync("off","Sin conexión: se reintenta"); }
+}
+function queueOp(op){
+  applyOp(op, local.c); persistLocal();     // caché local (offline)
+  if(!remote){ return Promise.resolve(); }
+  pending.push(op); savePending();
+  opChain = opChain.then(flushPending);
+  return opChain;
+}
+async function saveDoc(col,id,data,merge){ return queueOp(merge?{op:"patch",id,data}:{op:"set",id,data}); }
+async function delDoc(col,id){ return queueOp({op:"delete",id}); }
+function patchClient(id, patch){
+  patch.upd = {por: me||"", en: new Date().toISOString()};
+  clients[id] = deepMerge(clients[id]||{}, patch);
+  renderList(); renderStats();
+  return saveDoc("clientes", id, patch, true);
+}
+
+// ---------- Render: Gestión ----------
+function lotes(){ return [...new Set(Object.values(clients).map(c=>c.lote).filter(Boolean))].sort().reverse(); }
+function fillLoteSelects(){
+  const L=lotes();
+  const opts = (all) => (all?`<option value="">Todos los días</option>`:"") + L.map(l=>`<option value="${l}">Altas del ${fmt(l)}</option>`).join("");
+  const f=$("#fLote"), cur=f.value; f.innerHTML=opts(true); f.value = L.includes(cur)?cur:(filt.lote && L.includes(filt.lote)?filt.lote:"");
+  for(const s of ["#expLote","#delLote"]){ const e=$(s), c=e.value; e.innerHTML=opts(false); if(L.includes(c)) e.value=c; }
+}
+function suggestion(c){
+  const r=c.res||"pendiente";
+  if(r==="wo") return c.zona==="Bogotá" ? ["d-wo","Crear WO de inspección y asignar especialista, pactando fecha y franja con el cliente."] : ["d-wo","Crear WO de inspección y avisar al coordinador regional."];
+  if(r==="remoto") return ["d-ok","No se crea WO: resuelto en remoto."];
+  if(r==="no_contesto") return ["d-na","No se crea WO: reintentar llamada y dejar el WhatsApp enviado."];
+  const audNo = [...AUD,...VID].some(([k])=>c.aud&&c.aud[k]==="no");
+  const qNo = QS.some(([k])=>c.q&&c.q[k]==="no");
+  if(audNo||qNo||(c.fallos&&c.fallos.length)) return ["d-rev","Hay novedad: intenta primero en remoto. Si es daño físico o no se resuelve en remoto, marca WO inspección."];
+  if(r==="sin_novedad") return ["d-ok","No se crea WO."];
+  return ["d-na","Pendiente de gestión."];
+}
+function visible(){
+  const q=norm(filt.q);
+  return Object.entries(clients).filter(([id,c])=>{
+    if(filt.lote && c.lote!==filt.lote) return false;
+    if(filt.who!=="todos" && c.resp!==filt.who) return false;
+    const r=c.res||"pendiente";
+    if(filt.st==="pendiente" && r!=="pendiente") return false;
+    if(filt.st==="fallos" && !(c.fallos&&c.fallos.length)) return false;
+    if(filt.st==="wo" && r!=="wo") return false;
+    if(filt.st==="hechas" && r==="pendiente") return false;
+    if(q && !norm([c.nombre,c.cel,c.cod,c.wo,c.dep,c.tec].join(" ")).includes(q)) return false;
+    return true;
+  }).sort((a,b)=>{ const pa=(a[1].res||"pendiente")==="pendiente"?0:1, pb=(b[1].res||"pendiente")==="pendiente"?0:1; if(pa!==pb) return pa-pb; const fa=(a[1].fallos||[]).length?0:1, fb=(b[1].fallos||[]).length?0:1; if(fa!==fb) return fa-fb; return String(a[1].cod).localeCompare(String(b[1].cod)); });
+}
+function renderFilters(){
+  const who=[["todos","Todas"],["Wilson","Wilson"],["Marlon","Marlon"]];
+  $("#fWho").innerHTML = who.map(([v,l])=>`<button class="chip" data-who="${v}" aria-pressed="${filt.who===v}">${l}</button>`).join("");
+  const st=[["pendiente","Pendientes"],["fallos","Con fallos"],["wo","WO"],["hechas","Gestionadas"],["todas","Todo"]];
+  $("#fState").innerHTML = st.map(([v,l])=>`<button class="chip" data-st="${v}" aria-pressed="${filt.st===v}">${l}</button>`).join("");
+}
+function renderStats(){
+  const all=Object.values(clients).filter(c=>(!filt.lote||c.lote===filt.lote)&&(filt.who==="todos"||c.resp===filt.who));
+  const n=k=>all.filter(c=>(c.res||"pendiente")===k).length;
+  const contest=all.filter(c=>c.contesto==="si").length;
+  $("#stats").innerHTML = [["pend",n("pendiente"),"Pendientes"],["",all.length,"Asignadas"],["okk",contest,"Contestaron"],["okk",n("sin_novedad")+n("remoto"),"Sin novedad / remoto"],["wo",n("wo"),"WO inspección"],["nc",n("no_contesto"),"No contestó"]]
+    .map(([c,v,l])=>`<div class="stat ${c}"><b>${v}</b><span>${l}</span></div>`).join("");
+}
+function renderList(){
+  const v=visible(), el=$("#list");
+  if(!Object.keys(clients).length){ el.innerHTML=`<div class="empty">Aún no hay altas cargadas. Ve a <b>Cargar base</b> y sube el reporte del correo.</div>`; return; }
+  if(!v.length){ el.innerHTML=`<div class="empty">Nada en este filtro. Cambia a "Todo" o a "Todas".</div>`; return; }
+  el.innerHTML = v.map(([id,c])=>{
+    const r=c.res||"pendiente", nf=(c.fallos||[]).length;
+    return `<button class="row" data-id="${esc(id)}" aria-current="${sel===id}"><span class="bar s-${r}"></span>
+      <span><span class="name">${esc(c.nombre||"Cliente sin nombre")}</span><br><span class="meta">${esc(c.cod)} · ${esc(c.dep||"Sin dpto.")} · ${esc(c.resp||"")}</span></span>
+      <span style="text-align:right">${nf?`<span class="tag bad">${nf} fallo${nf>1?"s":""}</span><br>`:""}<span class="tag ${r==="wo"?"bad":r==="pendiente"?"warn":r==="no_contesto"?"":"ok"}">${RESL[r]}</span></span></button>`;
+  }).join("");
+}
+function seg(name,val,opts){ return `<span class="seg" role="group">${opts.map(([v,l])=>`<button type="button" class="v-${v}" data-set="${name}" data-v="${v}" aria-pressed="${val===v}">${l}</button>`).join("")}</span>`; }
+const OKNO=[["ok","OK"],["no","No"],["na","N/A"]], SINO=[["si","Sí"],["no","No"],["na","N/A"]];
+
+function msgSpeech(c){
+  const n=nomSal(c);
+  return `Hola${n}, ${saludo()}. Mi nombre es ${me||"[su nombre]"}, del departamento de Aseguramiento de Calidad y Servicio de Prosegur Alarmas. Le escribo porque el pasado ${longDate(c.fins)||"[fecha]"} realizamos la instalación de su sistema de alarma y queremos confirmar que todo esté funcionando al 100% y resolver cualquier duda.\n\n¿Nos ayuda respondiendo Sí o No a estas preguntas?\n1. ¿La app Prosegur Smart funciona y conoce sus funcionalidades?\n2. ¿Puede armar y desarmar sin problema?\n3. ¿Puede solicitar imágenes desde su PirCam?\n4. Si tiene cámara: ¿puede verla y revisar grabaciones pasadas?\n5. ¿Sabe cambiar su palabra clave y contraclave?\n6. ¿Sabe agregar un contacto de emergencia?\n7. ¿Quedó conforme con la estética, orden y aseo de la instalación y la actitud del técnico?\n8. ¿Le dieron inducción de manejo del sistema?\n\nQuedamos atentos. ¡Gracias!`;
+}
+function msgInstr(c,key,label){
+  const link=(cfg.links||{})[key];
+  return `Hola${nomSal(c)}, como lo conversamos, le compartimos el instructivo de "${label}" de su sistema Prosegur Alarmas${link?`:\n${link}`:" (adjunto)."}\n\nCualquier duda nos escribe por aquí.`;
+}
+function msgCierre(c){
+  const link=(cfg.links||{}).encuesta;
+  return `Hola${nomSal(c)}, gracias por su tiempo. Le recordamos que le llegará a su correo y a su WhatsApp un link para calificar el servicio prestado por el técnico que instaló su alarma.${link?`\n${link}`:""}\n\nProsegur Alarmas — Aseguramiento de Calidad.`;
+}
+function msgFallo(c,g){ return `Hola${nomSal(c)}, ${saludo()}. Le escribe ${me||"[su nombre]"} de Prosegur Alarmas: ${g.m}`; }
+function msgVisita(c){ return `Hola${nomSal(c)}, le confirmamos la visita de inspección de su sistema de alarma Prosegur para el ${longDate(c.wof)||"[fecha]"} en la franja ${c.wofr||"[franja]"}. Orden de trabajo ${c.woi||"[WO]"}.${c.woa?` La realizará nuestro especialista ${c.woa}.`:""}`; }
+function msgCoord(c){ return `Hola, se creó WO de inspección ${c.woi||"[WO]"}.\nCuenta: ${c.cod} · Contrato ${c.contrato||""}\nCliente: ${c.nombre||"sin nombre"} · Cel ${c.cel}\nDepartamento: ${c.dep||"sin dato"}\nTécnico instalador: ${c.tec||""} (WO instalación ${c.wo})\nMotivo: ${c.obs||"[motivo]"}\nPor favor programar. Gracias. — ${me||"Calidad"}`; }
+function contacts(txt){ return String(txt||"").split("\n").map(s=>s.trim()).filter(Boolean).map(l=>{ const m=l.match(/^(.*?)(?:=\s*([\d\s+]+))?$/); return {label:(m[1]||l).trim(), tel:(m[2]||"").replace(/\D/g,"")}; }); }
+
+function renderDetail(){
+  const box=$("#detail");
+  if(!sel || !clients[sel]){ box.hidden=true; box.innerHTML=window.innerWidth>=900?`<p class="hint">Elige un cliente de la lista.</p>`:""; if(window.innerWidth>=900) box.hidden=false; return; }
+  const c=clients[sel]; box.hidden=false;
+  const [dc,dt]=suggestion(c);
+  const fallosHtml = (c.fallos||[]).length ? c.fallos.map(f=>{ const g=GUIA[`${f.e}|${f.r}`]; return `<div class="fallo"><b>${esc(f.e)} · ${esc(f.r)}</b>${g?`<p>${esc(g.t)}</p><p><b style="color:inherit">En remoto:</b> ${esc(g.r)}</p><p><b style="color:inherit">WO si:</b> ${esc(g.w)}</p>${g.m?`<a class="btn wa small" target="_blank" rel="noopener" href="${waLink(c.cel,msgFallo(c,g))}">Escribirle sobre este fallo</a>`:""}`:`<p>Revisar en plataforma.</p>`}</div>`; }).join("")
+    : c.auditado===false ? `<p class="hint">Esta cuenta no venía en el archivo de validación. Revísala a mano en la plataforma.</p>` : `<p class="hint"><span class="tag ok">Sin fallos</span> en el archivo de validación.</p>`;
+  box.innerHTML = `
+  <button class="back" data-act="close">‹ Volver a la lista</button>
+  <div class="dh">
+    <input class="nameedit" data-field="nombre" value="${esc(c.nombre||"")}" placeholder="Nombre del cliente" aria-label="Nombre del cliente">
+    <div class="sub">${esc(c.cod)} · WO ${esc(c.wo)} · Contrato ${esc(c.contrato)} · ${esc(c.dep||"Sin dpto.")} <span class="tag ${c.zona==="Bogotá"?"info":""}">${esc(c.zona)}</span></div>
+    <div class="sub">Instalado el ${fmt(c.fins)||"?"} por ${esc(c.tec||"?")} · ${esc(c.tipo||"")} · ${esc(c.estado||"")}</div>
+    <div class="sub">Responsable: <select class="inp" style="width:auto;padding:.15rem .4rem" data-field="resp"><option ${c.resp==="Wilson"?"selected":""}>Wilson</option><option ${c.resp==="Marlon"?"selected":""}>Marlon</option></select></div>
+  </div>
+  <div class="actions">
+    <a class="btn primary" href="tel:${esc(String(c.cel).replace(/\D/g,""))}">Llamar ${esc(c.cel)}</a>
+    <a class="btn wa" target="_blank" rel="noopener" href="${waLink(c.cel,msgSpeech(c))}">WhatsApp con speech</a>
+    <a class="btn wa" target="_blank" rel="noopener" href="${waLink(c.cel,msgCierre(c))}" data-act="cierre">Enviar link de calificación</a>
+  </div>
+
+  <section class="blk"><h3>Fallos de plataforma</h3>${fallosHtml}</section>
+
+  <section class="blk"><h3>Auditoría remota</h3>
+    <div class="qgrid">${AUD.map(([k,l])=>`<div class="q"><span class="lbl">${l}</span>${seg("aud."+k,(c.aud||{})[k],OKNO)}</div>`).join("")}</div>
+    <h3 style="margin-top:.9rem;font-size:1.1rem">Servicio de video</h3>
+    <div class="qgrid">${VID.map(([k,l])=>`<div class="q"><span class="lbl">${l}</span>${seg("aud."+k,(c.aud||{})[k],OKNO)}</div>`).join("")}</div>
+  </section>
+
+  <section class="blk"><h3>Llamada</h3>
+    <div class="row2" style="align-items:center">
+      <span>¿Contestó?</span>${seg("contesto",c.contesto,[["si","Sí"],["no","No"]])}
+      <span class="counter">Intentos <button class="btn small" data-act="int-">−</button><b>${c.intentos||0}</b><button class="btn small" data-act="int+">+</button></span>
+    </div>
+    ${c.contesto==="no" && (c.intentos||0)>=3 ? `<p class="hint" style="color:var(--warn)">Ya van ${c.intentos} intentos: envía el WhatsApp con el speech y marca "No contestó".</p>`:""}
+    <details style="margin:.7rem 0"><summary>Ver speech para leer en la llamada</summary><div class="speech">
+      <p>Hola, ${saludo()}. ¿Hablo con <b>${esc(c.nombre||"[nombre del cliente]")}</b>? Mi nombre es <b>${esc(me||"[su nombre]")}</b>, del departamento de Aseguramiento de Calidad y Servicio de Prosegur Alarmas. Le hablo muy brevemente porque recientemente realizamos la instalación de su sistema de alarma el pasado <b>${esc(longDate(c.fins)||"[fecha]")}</b>, y quiero confirmar que todo esté funcionando al 100% y resolver cualquier duda.</p>
+      <p>Quisiera preguntarle brevemente sobre los siguientes puntos de su instalación o conexión…</p>
+      <p><i>Al final:</i> Recuerde que le llegará a su correo y a su WhatsApp un link para calificar el servicio prestado por el técnico que instaló su alarma.</p></div></details>
+    <div class="qgrid">${QS.map(([k,l,ins])=>{ const v=(c.q||{})[k]; const lbl=(LINKS.find(x=>x[0]===ins)||[])[1];
+      return `<div class="q"><span class="lbl">${l}</span>${seg("q."+k,v,SINO)}${v==="no"&&ins?`<div class="extra"><a class="btn wa small" target="_blank" rel="noopener" data-act="instr" data-k="${k}" href="${waLink(c.cel,msgInstr(c,ins,lbl))}">Enviar instructivo: ${lbl}</a> ${(c.instr||{})[k]?`<span class="tag ok">Enviado</span>`:""}</div>`:""}${v==="no"&&k==="estetica"?`<div class="extra hint">Registra la PQRS en observaciones.</div>`:""}</div>`; }).join("")}</div>
+  </section>
+
+  <section class="blk"><h3>Resultado y decisión</h3>
+    <div class="res">${RES.map(([v,l])=>`<button data-set="res" data-v="${v}" aria-pressed="${(c.res||"pendiente")===v}">${l}</button>`).join("")}</div>
+    <div class="decision ${dc}">¿Creamos WO? ${esc(dt)}</div>
+    ${c.res==="wo" ? `<div class="fields">
+      <label class="f">Número de WO de inspección<input data-field="woi" inputmode="numeric" value="${esc(c.woi||"")}"></label>
+      ${c.zona==="Bogotá" ? `
+      <label class="f">Especialista asignado<input data-field="woa" value="${esc(c.woa||"")}"></label>
+      <label class="f">Fecha pactada con el cliente<input type="date" data-field="wof" value="${esc(c.wof||"")}"></label>
+      <label class="f">Franja<select data-field="wofr"><option value="">Elegir…</option><option ${c.wofr==="AM (8-12)"?"selected":""}>AM (8-12)</option><option ${c.wofr==="PM (12-5)"?"selected":""}>PM (12-5)</option></select></label>`
+      : `<label class="f">Coordinador<input data-field="woa" value="${esc(c.woa||"")}"></label>
+      <label class="f">¿Coordinador avisado?<select data-field="coordav"><option value="">—</option><option value="si" ${c.coordav==="si"?"selected":""}>Sí</option><option value="no" ${c.coordav==="no"?"selected":""}>No</option></select></label>`}
+    </div>
+    <div class="actions">
+      ${c.zona==="Bogotá" ? `<a class="btn wa small" target="_blank" rel="noopener" href="${waLink(c.cel,msgVisita(c))}">Confirmar visita al cliente</a><a class="btn wa small" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCoord(c))}">Enviar datos al especialista</a>`
+      : `<a class="btn wa small" target="_blank" rel="noopener" data-act="coordav" href="https://wa.me/?text=${encodeURIComponent(msgCoord(c))}">Avisar al coordinador</a>`}
+    </div>
+    <p class="hint">Los botones de especialista y coordinador abren WhatsApp para que elijas el contacto.</p>` : ""}
+    ${c.zona==="Sin dato" ? `<p class="hint" style="color:var(--warn)">Sin departamento en la base: <button class="btn small" data-zona="Bogotá">Es Bogotá</button> <button class="btn small" data-zona="Regional">Es regional</button></p>`:""}
+    <label class="f" style="margin-top:.8rem">Observaciones (motivo de WO, PQRS, lo que se resolvió)<textarea data-field="obs">${esc(c.obs||"")}</textarea></label>
+    <p class="saved">${c.upd&&c.upd.en?`Última edición: ${esc(c.upd.por||"")} ${new Date(c.upd.en).toLocaleString("es-CO",{dateStyle:"short",timeStyle:"short"})}`:""}${c.cierre?` · Link de calificación enviado`:""}</p>
+  </section>`;
+}
+
+// ---------- Eventos: Gestión ----------
+document.addEventListener("click", e=>{
+  const t=e.target.closest("button,a"); if(!t) return;
+  if(t.dataset.me){ me=t.dataset.me; ls.set("ca_me",me); filt.who=me; renderMe(); renderFilters(); renderList(); renderStats(); if(sel) renderDetail(); return; }
+  if(t.dataset.tab){ document.querySelectorAll("[data-tab]").forEach(b=>b.setAttribute("aria-selected",b===t)); document.querySelectorAll("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==t.dataset.tab); return; }
+  if(t.dataset.who){ filt.who=t.dataset.who; renderFilters(); renderList(); renderStats(); return; }
+  if(t.dataset.st){ filt.st=t.dataset.st; renderFilters(); renderList(); return; }
+  if(t.classList.contains("row")){ sel=t.dataset.id; renderList(); renderDetail(); if(window.innerWidth<900) $("#detail").scrollTop=0; return; }
+  if(!sel) return;
+  const c=clients[sel];
+  if(t.dataset.act==="close"){ sel=null; renderList(); renderDetail(); return; }
+  if(t.dataset.set){ const [a,b]=t.dataset.set.split("."); const v=t.dataset.v; const cur=b?((c[a]||{})[b]):c[a]; const nv = cur===v && a!=="res" ? "" : v;
+    const patch = b ? {[a]:{[b]:nv}} : {[a]:nv};
+    if(a==="contesto" && v==="no" && cur!=="no") patch.intentos=(c.intentos||0)+1;
+    if(a==="contesto" && v==="si" && !c.intentos) patch.intentos=1;
+    patchClient(sel,patch); renderDetail(); return; }
+  if(t.dataset.act==="int+"||t.dataset.act==="int-"){ patchClient(sel,{intentos:Math.max(0,(c.intentos||0)+(t.dataset.act==="int+"?1:-1))}); renderDetail(); return; }
+  if(t.dataset.act==="instr"){ patchClient(sel,{instr:{[t.dataset.k]:true}}); setTimeout(renderDetail,50); return; }
+  if(t.dataset.act==="cierre"){ patchClient(sel,{cierre:true}); setTimeout(renderDetail,50); return; }
+  if(t.dataset.act==="coordav"){ patchClient(sel,{coordav:"si"}); setTimeout(renderDetail,50); return; }
+  if(t.dataset.zona){ patchClient(sel,{zona:t.dataset.zona}); renderDetail(); return; }
+});
+document.addEventListener("change", e=>{
+  const f=e.target.dataset.field; if(f && sel){ patchClient(sel,{[f]:e.target.value}); if(["woa","wofr","wof","coordav","resp"].includes(f)) renderDetail(); }
+  if(e.target.id==="fLote"){ filt.lote=e.target.value; renderList(); renderStats(); }
+});
+document.addEventListener("focusout", ()=>{ setTimeout(()=>{ if(pendingRender && !$("#detail").contains(document.activeElement)){ pendingRender=false; renderDetail(); } },0); });
+$("#q").addEventListener("input", e=>{ filt.q=e.target.value; renderList(); });
+function renderMe(){ document.querySelectorAll("[data-me]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.me===me)); }
+
+// ---------- Importación ----------
+let parsed = { base:null, fallos:null };
+function decode(buf){ try{ return new TextDecoder("utf-8",{fatal:true}).decode(buf); }catch(e){ return new TextDecoder("iso-8859-1").decode(buf); } }
+function rowsFromFile(name, buf){
+  const head = new Uint8Array(buf.slice(0,64)); const txt0 = String.fromCharCode(...head).trim().toLowerCase();
+  if(txt0.startsWith("<")){
+    let text=decode(buf); const doc=new DOMParser().parseFromString(text,"text/html"); const tr=[...doc.querySelectorAll("tr")];
+    return tr.map(r=>[...r.querySelectorAll("th,td")].map(c=>c.textContent.trim()));
+  }
+  const isCsv=/\.csv$/i.test(name);
+  if(isCsv) return parseCsv(decode(buf).replace(/^\uFEFF/,""));
+  if(!window.XLSX) throw new Error("No cargó el lector de Excel. Recarga la página.");
+  const wb = isCsv ? XLSX.read(decode(buf),{type:"string",raw:true}) : XLSX.read(buf,{type:"array",cellDates:true});
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:""});
+}
+function parseCsv(t){
+  const sep = (t.split(/\r?\n/)[0].match(/;/g)||[]).length > (t.split(/\r?\n/)[0].match(/,/g)||[]).length ? ";" : ",";
+  const out=[]; let row=[], f="", q=false;
+  for(let i=0;i<t.length;i++){ const ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else q=false; } else f+=ch; }
+    else if(ch==='"') q=true; else if(ch===sep){ row.push(f); f=""; } else if(ch==="\n"){ row.push(f.replace(/\r$/,"")); out.push(row); row=[]; f=""; } else f+=ch; }
+  if(f||row.length){ row.push(f.replace(/\r$/,"")); out.push(row); }
+  return out;
+}
+function mapCols(header, spec){ const h=header.map(norm); const o={}; for(const [k,pats] of Object.entries(spec)){ o[k]=h.findIndex(x=>pats.some(p=>p instanceof RegExp?p.test(x):x.includes(p))); } return o; }
+function findName(header){ return 0; } // el nombre del cliente es siempre la PRIMERA columna de la base
+const BASE_SPEC={fins:["fecha de instalacion"],wo:["orden de trabajo"],cel:["telefono","celular"],cod:["codigo de conexion"],tipo:["tipo de trabajo"],contrato:["numero de contrato"],dep:["provincia","departamento"],fcre:["fecha de creacion"],estado:[/^estado$/],com:["comentarios"],notas:["notas tecnicas"]};
+const FALLO_SPEC={cod:["codigo de conexion"],con:["con problemas"],et:["etiqueta"],res:["resolucion"],ult:["ultima conexion"]};
+const W="[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+"; const STOP=new Set(["Manifiesta","Indica","Solicita","Informa","Refiere","Comenta","Se","El","La","Queda","Cliente"]);
+const NAME_PATS=[new RegExp("CONTACTO:\\s*([^:]+?)\\s+TEL"),new RegExp(`(?:atiende|atendida por|recibe)\\s+(?:el|la)?\\s*(?:señor|señora|sr\\.?|sra\\.?|don|doña)?\\s*(${W}(?:\\s+${W})?)`),new RegExp(`(?:Sr\\.|Sra\\.|señor|señora|Don|doña)\\s+(${W}(?:\\s+${W})?)`),new RegExp(`[Cc]liente\\s+(${W}(?:\\s+${W})?)`)];
+function guessName(t){ for(const p of NAME_PATS){ const re=new RegExp(p.source,"g"); let m; while((m=re.exec(t))){ const n=m[1].split(/\s+/).filter(w=>!STOP.has(w)).join(" ").trim(); if(n) return n; } } return ""; }
+function guessTec(t){ const m=String(t||"").match(/\]\s*([^:\[]+?):/); return m?m[1].trim():""; }
+async function handleFiles(list){
+  const ul=$("#fileList");
+  for(const f of list){
+    try{
+      const rows=rowsFromFile(f.name, await f.arrayBuffer()); const hi=rows.findIndex(r=>r.some(x=>/codigo de conexion/.test(norm(x)))); if(hi<0) throw new Error("No encontré la columna Código de conexión");
+      const hdr=rows[hi], body=rows.slice(hi+1).filter(r=>r.some(x=>String(x).trim()));
+      if(hdr.some(x=>norm(x)==="con problemas")){ parsed.fallos={name:f.name,cols:mapCols(hdr,FALLO_SPEC),rows:body}; }
+      else { const bc=mapCols(hdr,BASE_SPEC); bc.nombre=findName(hdr); parsed.base={name:f.name,cols:bc,rows:body}; }
+    }catch(err){ toast(`${f.name}: ${err.message}`); }
+  }
+  ul.innerHTML = [parsed.base?`<li>Base de altas: <b>${esc(parsed.base.name)}</b> (${parsed.base.rows.length} filas)</li>`:`<li>Falta la base de altas (.xls del correo)</li>`, parsed.fallos?`<li>Validación de fallos: <b>${esc(parsed.fallos.name)}</b> (${parsed.fallos.rows.length} filas)</li>`:`<li>Sin archivo de fallos (opcional)</li>`].join("");
+  $("#importOpts").hidden=!parsed.base; buildPreview();
+}
+function prevBusinessRange(){ const d=new Date(); d.setHours(12); const dow=d.getDay(); const end=new Date(d); end.setDate(d.getDate()-1); const start=new Date(end); if(dow===1){ start.setDate(d.getDate()-3); } return [iso(start),iso(end)]; }
+function candidates(){
+  if(!parsed.base) return [];
+  const {cols,rows}=parsed.base, g=(r,k)=>cols[k]>=0?String(r[cols[k]]??"").trim():"";
+  const fmap={}, seen=new Set();
+  if(parsed.fallos){ const fc=parsed.fallos.cols; for(const r of parsed.fallos.rows){ const cod=String(r[fc.cod]||"").trim(); seen.add(cod); if(norm(r[fc.con])==="si"){ (fmap[cod]=fmap[cod]||[]).push({e:String(r[fc.et]||"").trim(),r:String(r[fc.res]||"").trim()}); } } }
+  let out = rows.map(r=>{ const txt=g(r,"com")+" "+g(r,"notas"); const dep=g(r,"dep"); const cod=g(r,"cod");
+    const nb=g(r,"nombre").replace(/\s+/g," ").trim();
+    return {nombreBase:!!nb,cod,wo:g(r,"wo"),cel:g(r,"cel").replace(/\D/g,""),tipo:g(r,"tipo"),contrato:g(r,"contrato"),dep,zona:zonaDe(dep),fins:parseDMY(g(r,"fins")),estado:g(r,"estado"),nombre:nb,tec:guessTec(g(r,"com")),fallos:fmap[cod]||[],auditado:parsed.fallos?seen.has(cod):null};
+  }).filter(x=>x.cod);
+  const rng=$("#impRange").value;
+  if(rng==="prev"){ const [a,b]=prevBusinessRange(); out=out.filter(x=>x.fins>=a&&x.fins<=b); }
+  if(rng==="7"){ const d=new Date(); d.setDate(d.getDate()-7); const a=iso(d); out=out.filter(x=>x.fins>=a); }
+  if($("#impOnlyInst").checked) out=out.filter(x=>norm(x.tipo).startsWith("instalacion"));
+  return out;
+}
+function buildPreview(){
+  const c=candidates(); const nf=c.filter(x=>x.fallos.length).length, bog=c.filter(x=>x.zona==="Bogotá").length, ex=c.filter(x=>clients[safeId(x.cod)]).length;
+  $("#impPreview").innerHTML = c.length ? `<p><b>${c.length}</b> altas · <b>${nf}</b> con fallos · <b>${bog}</b> Bogotá · <b>${c.length-bog}</b> regionales${ex?` · <b>${ex}</b> ya estaban cargadas (se actualizan los datos de la base y los fallos, sin borrar lo gestionado)`:""}</p>
+    <div class="tw"><table class="t"><thead><tr><th>Código</th><th>Cliente</th><th>Celular</th><th>Dpto.</th><th>Instalado</th><th>Fallos</th></tr></thead><tbody>${c.slice(0,60).map(x=>`<tr><td>${esc(x.cod)}</td><td>${esc(x.nombre||"—")}</td><td>${esc(x.cel)}</td><td>${esc(x.dep)}</td><td>${fmt(x.fins)}</td><td>${x.fallos.map(f=>esc(f.e+" "+f.r)).join(", ")}</td></tr>`).join("")}</tbody></table></div>` : `<p class="hint">Ninguna alta coincide con ese filtro.</p>`;
+}
+["#impRange","#impOnlyInst"].forEach(s=>$(s).addEventListener("change",buildPreview));
+$("#files").addEventListener("change",e=>handleFiles(e.target.files));
+const drop=$("#drop"); drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("over");}); drop.addEventListener("dragleave",()=>drop.classList.remove("over")); drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("over");handleFiles(e.dataTransfer.files);});
+$("#impGo").addEventListener("click", async()=>{
+  const c=candidates(); if(!c.length) return toast("No hay altas para cargar.");
+  const lote=$("#impLote").value||iso(new Date(Date.now()-864e5)); const split=$("#impSplit").value;
+  const btn=$("#impGo"); btn.disabled=true;
+  let nNew=0, i=0;
+  const cnt={Wilson:0,Marlon:0}, cntF={Wilson:0,Marlon:0};
+  Object.values(clients).filter(x=>x.lote===lote).forEach(x=>{ if(cnt[x.resp]!=null){ cnt[x.resp]++; if((x.fallos||[]).length) cntF[x.resp]++; } });
+  const pick=hf=>{ if(hf && cntF.Wilson!==cntF.Marlon) return cntF.Wilson<cntF.Marlon?"Wilson":"Marlon"; return cnt.Wilson<=cnt.Marlon?"Wilson":"Marlon"; };
+  const batchItems=[];
+  for(const x of c){
+    const id=safeId(x.cod); const ex=clients[id];
+    const base={cod:x.cod,wo:x.wo,cel:x.cel,tipo:x.tipo,contrato:x.contrato,dep:x.dep,fins:x.fins,estado:x.estado,tec:x.tec,fallos:x.fallos,auditado:x.auditado};
+    if(ex){ const p={...base}; if(x.nombreBase){ p.nombre=x.nombre; p.nombreBase=true; } else if(!ex.nombre&&x.nombre) p.nombre=x.nombre; if(!ex.zona||ex.zona==="Sin dato") p.zona=x.zona; clients[id]=deepMerge(ex,p); batchItems.push({id,data:p}); }
+    else { const hf=x.fallos.length>0; const resp = split==="both" ? pick(hf) : split; cnt[resp]++; if(hf) cntF[resp]++;
+      const doc={...base,nombre:x.nombre,nombreBase:x.nombreBase,zona:x.zona,lote,resp,res:"pendiente",intentos:0,aud:{},q:{},instr:{},creado:new Date().toISOString(),cargadoPor:me||""};
+      clients[id]=doc; batchItems.push({id,data:doc}); nNew++; }
+  }
+  await queueOp({op:"batch",items:batchItems});
+  btn.disabled=false; btn.textContent="Cargar y repartir";
+  filt.lote=lote; filt.st="pendiente"; fillLoteSelects(); $("#fLote").value=lote; renderAll();
+  toast(`${nNew} altas nuevas y ${c.length-nNew} actualizadas para el ${fmt(lote)}.`);
+  document.querySelector('[data-tab="gestion"]').click();
+});
+
+// ---------- Exportación ----------
+function saveBlob(blob,name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000); }
+const HEAD=["Fecha gestión","Altas del día","Responsable","WO instalación","Código conexión","Contrato","Cliente (nombre)","Celular","Departamento","Zona","Técnico instalador","Estado WO","Fallos plataforma",...AUD.map(a=>a[1]),...VID.map(a=>a[1]),"¿Contestó?","Intentos",...QS.map(q=>q[1]),"Instructivos enviados","Resultado","¿Crear WO?","WO inspección #","Especialista / coordinador","Fecha pactada","Franja","Coordinador avisado","Link calificación enviado","Observaciones"];
+const V={ok:"OK",no:"No OK",na:"N/A"}, S={si:"Sí",no:"No",na:"N/A"};
+function exportRows(lote){
+  return Object.values(clients).filter(c=>c.lote===lote).sort((a,b)=>String(a.resp).localeCompare(b.resp)||String(a.cod).localeCompare(b.cod)).map(c=>[
+    c.upd&&c.upd.en?fmt(c.upd.en.slice(0,10)):"",fmt(c.lote),c.resp||"",c.wo,c.cod,c.contrato,c.nombre||"",c.cel,c.dep||"",c.zona||"",c.tec||"",c.estado||"",
+    (c.fallos||[]).length?c.fallos.map(f=>f.e+" "+f.r).join(" | "):(c.auditado===false?"No auditado en plataforma":"Sin fallos"),
+    ...AUD.map(([k])=>V[(c.aud||{})[k]]||""),...VID.map(([k])=>V[(c.aud||{})[k]]||""),S[c.contesto]||"",c.intentos||0,
+    ...QS.map(([k])=>S[(c.q||{})[k]]||""),Object.keys(c.instr||{}).filter(k=>c.instr[k]).map(k=>(QS.find(q=>q[0]===k)||[])[2]||k).join(", "),
+    RESL[c.res||"pendiente"],suggestion(c)[1],c.woi||"",c.woa||"",fmt(c.wof),c.wofr||"",S[c.coordav]||"",c.cierre?"Sí":"",c.obs||""]);
+}
+$("#expXlsx").addEventListener("click", async()=>{
+  const lote=$("#expLote").value; if(!lote) return toast("No hay altas cargadas.");
+  if(!window.XLSX){ const csv="\uFEFF"+[HEAD,...exportRows(lote)].map(r=>r.map(x=>'"'+String(x??"").replace(/"/g,'""')+'"').join(";")).join("\r\n"); saveBlob(new Blob([csv],{type:"text/csv"}),`Gestion_altas_${lote}.csv`); return toast("Sin internet para Excel: se descargó en CSV."); }
+  const ws=XLSX.utils.aoa_to_sheet([HEAD,...exportRows(lote)]); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"Gestión diaria");
+  const data=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  saveBlob(new Blob([data],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),`Gestion_altas_${lote}.xlsx`);
+});
+$("#expCopy").addEventListener("click", async()=>{
+  const lote=$("#expLote").value; if(!lote) return toast("No hay altas cargadas.");
+  const tsv=exportRows(lote).map(r=>r.map(x=>String(x??"").replace(/[\t\n]/g," ")).join("\t")).join("\n");
+  try{ await navigator.clipboard.writeText(tsv); toast("Filas copiadas. Pégalas en la hoja Gestión diaria."); }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=tsv; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); toast("Filas copiadas."); }catch(_){ toast("Tu navegador bloqueó el copiado."); } ta.remove(); }
+});
+
+
+$("#delGo").addEventListener("click", async()=>{
+  const lote=$("#delLote").value; if(!lote) return; const ids=Object.keys(clients).filter(id=>clients[id].lote===lote);
+  if(!confirm(`¿Borrar ${ids.length} altas del ${fmt(lote)}? Se pierde lo gestionado.`)) return;
+  for(const id of ids){ delete clients[id]; await delDoc("clientes",id); }
+  if(sel&&!clients[sel]) sel=null; renderAll(); toast("Día borrado.");
+});
+
+// ---------- Arranque ----------
+function renderAll(){ fillLoteSelects(); renderFilters(); renderStats(); renderList(); if(!$("#detail").contains(document.activeElement)) renderDetail(); else pendingRender=true; }
+let unsub = null;
+function startData(){
+  if(unsub) return;
+  unsub = remote.subscribe(data=>{
+    clients = data || {};
+    for(const op of pending) applyOp(op, clients);
+    local.c = {...clients}; persistLocal();
+    if(sel && !clients[sel]) sel=null;
+    fillLoteSelects(); renderFilters(); renderStats(); renderList();
+    if($("#detail").contains(document.activeElement)) pendingRender=true; else renderDetail();
+    setSync("ok","Sincronizado");
+  }, ()=> setSync("off","Sin conexión: se reintenta"));
+  flushPending();
+}
+function showLogin(show){ $("#login").hidden=!show; $("#logout").hidden=show; }
+
+$("#loginForm").addEventListener("submit", async e=>{
+  e.preventDefault(); if(!remote||!remote.login) return;
+  const btn=$("#loginBtn"), err=$("#loginErr"); err.hidden=true; btn.disabled=true; btn.textContent="Entrando…";
+  try{ await remote.login($("#loginEmail").value.trim(), $("#loginPass").value); $("#loginPass").value=""; }
+  catch(ex){ err.hidden=false; err.textContent = /invalid|not-found|wrong|credential/i.test(ex.code||"") ? "Correo o contraseña incorrectos." : "No se pudo entrar: "+(ex.code||ex.message); }
+  finally{ btn.disabled=false; btn.textContent="Entrar"; }
+});
+$("#logout").addEventListener("click", async()=>{
+  if(!remote) return;
+  if(unsub){ unsub(); unsub=null; }
+  clients={}; local.c={}; persistLocal(); pending=[]; savePending();  // no dejar datos en el equipo
+  sel=null; renderAll();
+  try{ await remote.logout(); }catch(e){}
+});
+
+async function init(){
+  renderMe(); renderFilters(); $("#impLote").value=iso(new Date(Date.now()-864e5));
+  if(!me) toast("Elige arriba si eres Wilson o Marlon.");
+  const b=$("#modeBanner");
+  remote = await (window.CAfirebaseReady || Promise.resolve(null));
+  if(remote){
+    b.hidden=true; setSync("ok","Conectando…");
+    remote.onAuth(user=>{
+      if(user){ showLogin(false); startData(); }
+      else{ showLogin(true); if(unsub){ unsub(); unsub=null; } clients={}; local.c={}; persistLocal(); renderAll(); setSync("ok","Sesión cerrada"); }
+    });
+  }else{
+    clients={...local.c}; renderAll();
+    setSync("local","Local"); b.hidden=false;
+    b.innerHTML='Este equipo trabaja en <b>modo local</b> (los datos quedan solo en este navegador). Para compartir y proteger con contraseña, pega la configuración de <b>Firebase</b> arriba en el archivo (bloque CA_CONFIG) y activa Authentication. Te explico cómo abajo.';
+  }
+}
+init();
+})();
+</script>
+</body>
+</html>
