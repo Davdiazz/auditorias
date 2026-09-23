@@ -582,7 +582,7 @@ function parseCsv(t){
 }
 function mapCols(header, spec){ const h=header.map(norm); const o={}; for(const [k,pats] of Object.entries(spec)){ o[k]=h.findIndex(x=>pats.some(p=>p instanceof RegExp?p.test(x):x.includes(p))); } return o; }
 function findName(header){ return 0; } // el nombre del cliente es siempre la PRIMERA columna de la base
-const BASE_SPEC={fins:["fecha de instalacion"],wo:["orden de trabajo"],cel:["telefono","celular"],cod:["codigo de conexion"],tipo:["tipo de trabajo"],contrato:["numero de contrato"],dep:["provincia","departamento"],fcre:["fecha de creacion"],estado:[/^estado$/],com:["comentarios"],notas:["notas tecnicas"]};
+const BASE_SPEC={fins:["fecha de finalizacion"],wo:["orden de trabajo"],cel:["telefono","celular"],cod:["codigo de conexion"],tipo:["tipo de trabajo"],contrato:["numero de contrato"],dep:["provincia","departamento"],fcre:["fecha de creacion"],estado:[/^estado$/],com:["comentarios"],notas:["notas tecnicas"]};
 const FALLO_SPEC={cod:["codigo de conexion"],con:["con problemas"],et:["etiqueta"],res:["resolucion"],ult:["ultima conexion"]};
 const W="[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+"; const STOP=new Set(["Manifiesta","Indica","Solicita","Informa","Refiere","Comenta","Se","El","La","Queda","Cliente"]);
 const NAME_PATS=[new RegExp("CONTACTO:\\s*([^:]+?)\\s+TEL"),new RegExp(`(?:atiende|atendida por|recibe)\\s+(?:el|la)?\\s*(?:señor|señora|sr\\.?|sra\\.?|don|doña)?\\s*(${W}(?:\\s+${W})?)`),new RegExp(`(?:Sr\\.|Sra\\.|señor|señora|Don|doña)\\s+(${W}(?:\\s+${W})?)`),new RegExp(`[Cc]liente\\s+(${W}(?:\\s+${W})?)`)];
