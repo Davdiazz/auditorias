@@ -67,7 +67,7 @@ main{max-width:1100px;margin:0 auto;padding:1rem}
 .row{display:grid;grid-template-columns:6px 1fr auto;gap:.7rem;align-items:center;background:var(--surface);padding:.65rem .8rem .65rem 0;border:0;text-align:left;width:100%}
 .row[aria-current="true"]{background:var(--surface2)}
 .row .bar{align-self:stretch;background:var(--line)}
-.row .bar.s-pendiente{background:var(--signal)}.row .bar.s-sin_novedad{background:var(--ok)}.row .bar.s-remoto{background:var(--info)}.row .bar.s-wo{background:var(--bad)}.row .bar.s-no_contesto{background:var(--muted)}
+.row .bar.s-pendiente{background:var(--signal)}.row .bar.s-pendiente_wa{background:var(--wa)}.row .bar.s-sin_novedad{background:var(--ok)}.row .bar.s-remoto{background:var(--info)}.row .bar.s-wo{background:var(--bad)}.row .bar.s-no_contesto{background:var(--muted)}
 .row .name{font-weight:600;line-height:1.2}
 .row .meta{font-size:.8rem;color:var(--muted)}
 .tag{display:inline-block;font-size:.72rem;font-weight:600;padding:.08rem .45rem;border-radius:4px;background:var(--surface2);color:var(--muted);white-space:nowrap}
@@ -292,7 +292,7 @@ const QS = [
  ["estetica","Estética de la instalación, orden, aseo y actitud del técnico: ¿todo bien? (No = tiene PQRS)",null],
  ["induccion","¿Le dieron inducción de manejo del sistema?","induccion"]];
 const LINKS = [["app","App Prosegur Smart"],["armar","Armar y desarmar"],["pircam","Imágenes PirCam"],["video","Ver cámara y grabaciones"],["clave","Palabra clave y contraclave"],["contacto","Contacto de emergencia"],["induccion","Manejo general del sistema"],["encuesta","Link de calificación del técnico (opcional)"]];
-const RES = [["pendiente","Pendiente"],["sin_novedad","Sin novedad"],["remoto","Solucionado en remoto"],["wo","WO inspección"],["no_contesto","No contestó"]];
+const RES = [["pendiente","Pendiente"],["pendiente_wa","Pendiente WhatsApp enviado"],["sin_novedad","Sin novedad"],["remoto","Solucionado en remoto"],["wo","WO inspección"],["no_contesto","No contestó"]];
 const RESL = Object.fromEntries(RES);
 const GUIA = {
  "RECEIVER|SUPERV":{t:"La receptora perdió la supervisión del panel.",r:"Revisa en plataforma si el hub está en línea y por qué canal; valida SIM/APN y Ethernet. Pide al cliente reiniciar el router si comunica por internet y confirma que vuelve la supervisión.",w:"No vuelve a supervisar tras reinicio con SIM/APN correctos, o el hub no enciende.",m:"notamos que su panel tuvo intermitencia en la comunicación con nuestra central. ¿Nos ayuda reiniciando su router (desconectarlo 30 segundos y volverlo a conectar)? Le confirmamos apenas se restablezca."},
@@ -362,7 +362,7 @@ async function runOp(op){
 async function flushPending(){
   if(!remote || !pending.length) return;
   try{ while(pending.length){ await runOp(pending[0]); pending.shift(); savePending(); } setSync("ok","Sincronizado"); }
-  catch(e){ console.error(e); setSync("off","Sin conexión: se reintenta"); }
+  catch(e){ console.error(e); syncError(e); }
 }
 function queueOp(op){
   applyOp(op, local.c); persistLocal();     // caché local (offline)
@@ -393,6 +393,7 @@ function suggestion(c){
   if(r==="wo") return c.zona==="Bogotá" ? ["d-wo","Crear WO de inspección y asignar especialista, pactando fecha y franja con el cliente."] : ["d-wo","Crear WO de inspección y avisar al coordinador regional."];
   if(r==="remoto") return ["d-ok","No se crea WO: resuelto en remoto."];
   if(r==="no_contesto") return ["d-na","No se crea WO: reintentar llamada y dejar el WhatsApp enviado."];
+  if(r==="pendiente_wa") return ["d-na","WhatsApp con el speech enviado; a la espera de que el cliente responda."];
   const audNo = [...AUD,...VID].some(([k])=>c.aud&&c.aud[k]==="no");
   const qNo = QS.some(([k])=>c.q&&c.q[k]==="no");
   if(audNo||qNo||(c.fallos&&c.fallos.length)) return ["d-rev","Hay novedad: intenta primero en remoto. Si es daño físico o no se resuelve en remoto, marca WO inspección."];
@@ -405,13 +406,13 @@ function visible(){
     if(filt.lote && c.lote!==filt.lote) return false;
     if(filt.who!=="todos" && c.resp!==filt.who) return false;
     const r=c.res||"pendiente";
-    if(filt.st==="pendiente" && r!=="pendiente") return false;
+    if(filt.st==="pendiente" && r!=="pendiente" && r!=="pendiente_wa") return false;
     if(filt.st==="fallos" && !(c.fallos&&c.fallos.length)) return false;
     if(filt.st==="wo" && r!=="wo") return false;
     if(filt.st==="hechas" && r==="pendiente") return false;
     if(q && !norm([c.nombre,c.cel,c.cod,c.wo,c.dep,c.tec].join(" ")).includes(q)) return false;
     return true;
-  }).sort((a,b)=>{ const pa=(a[1].res||"pendiente")==="pendiente"?0:1, pb=(b[1].res||"pendiente")==="pendiente"?0:1; if(pa!==pb) return pa-pb; const fa=(a[1].fallos||[]).length?0:1, fb=(b[1].fallos||[]).length?0:1; if(fa!==fb) return fa-fb; return String(a[1].cod).localeCompare(String(b[1].cod)); });
+  }).sort((a,b)=>{ const pend=r=>(r==="pendiente"||r==="pendiente_wa")?0:1; const pa=pend(a[1].res||"pendiente"), pb=pend(b[1].res||"pendiente"); if(pa!==pb) return pa-pb; const fa=(a[1].fallos||[]).length?0:1, fb=(b[1].fallos||[]).length?0:1; if(fa!==fb) return fa-fb; return String(a[1].cod).localeCompare(String(b[1].cod)); });
 }
 function renderFilters(){
   const who=[["todos","Todas"],["Wilson","Wilson"],["Marlon","Marlon"]];
@@ -423,7 +424,7 @@ function renderStats(){
   const all=Object.values(clients).filter(c=>(!filt.lote||c.lote===filt.lote)&&(filt.who==="todos"||c.resp===filt.who));
   const n=k=>all.filter(c=>(c.res||"pendiente")===k).length;
   const contest=all.filter(c=>c.contesto==="si").length;
-  $("#stats").innerHTML = [["pend",n("pendiente"),"Pendientes"],["",all.length,"Asignadas"],["okk",contest,"Contestaron"],["okk",n("sin_novedad")+n("remoto"),"Sin novedad / remoto"],["wo",n("wo"),"WO inspección"],["nc",n("no_contesto"),"No contestó"]]
+  $("#stats").innerHTML = [["pend",n("pendiente")+n("pendiente_wa"),"Pendientes"],["",n("pendiente_wa"),"WhatsApp enviado"],["okk",contest,"Contestaron"],["okk",n("sin_novedad")+n("remoto"),"Sin novedad / remoto"],["wo",n("wo"),"WO inspección"],["nc",n("no_contesto"),"No contestó"]]
     .map(([c,v,l])=>`<div class="stat ${c}"><b>${v}</b><span>${l}</span></div>`).join("");
 }
 function renderList(){
@@ -434,7 +435,7 @@ function renderList(){
     const r=c.res||"pendiente", nf=(c.fallos||[]).length;
     return `<button class="row" data-id="${esc(id)}" aria-current="${sel===id}"><span class="bar s-${r}"></span>
       <span><span class="name">${esc(c.nombre||"Cliente sin nombre")}</span><br><span class="meta">${esc(c.cod)} · ${esc(c.dep||"Sin dpto.")} · ${esc(c.resp||"")}</span></span>
-      <span style="text-align:right">${nf?`<span class="tag bad">${nf} fallo${nf>1?"s":""}</span><br>`:""}<span class="tag ${r==="wo"?"bad":r==="pendiente"?"warn":r==="no_contesto"?"":"ok"}">${RESL[r]}</span></span></button>`;
+      <span style="text-align:right">${nf?`<span class="tag bad">${nf} fallo${nf>1?"s":""}</span><br>`:""}<span class="tag ${r==="wo"?"bad":(r==="pendiente"||r==="pendiente_wa")?"warn":r==="no_contesto"?"":"ok"}">${RESL[r]}</span></span></button>`;
   }).join("");
 }
 function seg(name,val,opts){ return `<span class="seg" role="group">${opts.map(([v,l])=>`<button type="button" class="v-${v}" data-set="${name}" data-v="${v}" aria-pressed="${val===v}">${l}</button>`).join("")}</span>`; }
@@ -474,7 +475,7 @@ function renderDetail(){
   </div>
   <div class="actions">
     <a class="btn primary" href="tel:${esc(String(c.cel).replace(/\D/g,""))}">Llamar ${esc(c.cel)}</a>
-    <a class="btn wa" target="_blank" rel="noopener" href="${waLink(c.cel,msgSpeech(c))}">WhatsApp con speech</a>
+    <a class="btn wa" target="_blank" rel="noopener" data-act="speechwa" href="${waLink(c.cel,msgSpeech(c))}">WhatsApp con speech</a>
     <a class="btn wa" target="_blank" rel="noopener" href="${waLink(c.cel,msgCierre(c))}" data-act="cierre">Enviar link de calificación</a>
   </div>
 
@@ -491,6 +492,7 @@ function renderDetail(){
       <span>¿Contestó?</span>${seg("contesto",c.contesto,[["si","Sí"],["no","No"]])}
       <span class="counter">Intentos <button class="btn small" data-act="int-">−</button><b>${c.intentos||0}</b><button class="btn small" data-act="int+">+</button></span>
     </div>
+    <div class="row2" style="align-items:center;margin-top:.4rem"><span>¿Comunicación por WhatsApp con el cliente?</span>${seg("waCom",c.waCom,[["si","Sí"],["no","No"]])}</div>
     ${c.contesto==="no" && (c.intentos||0)>=3 ? `<p class="hint" style="color:var(--warn)">Ya van ${c.intentos} intentos: envía el WhatsApp con el speech y marca "No contestó".</p>`:""}
     <details style="margin:.7rem 0"><summary>Ver speech para leer en la llamada</summary><div class="speech">
       <p>Hola, ${saludo()}. ¿Hablo con <b>${esc(c.nombre||"[nombre del cliente]")}</b>? Mi nombre es <b>${esc(me||"[su nombre]")}</b>, del departamento de Aseguramiento de Calidad y Servicio de Prosegur Alarmas. Le hablo muy brevemente porque recientemente realizamos la instalación de su sistema de alarma el pasado <b>${esc(longDate(c.fins)||"[fecha]")}</b>, y quiero confirmar que todo esté funcionando al 100% y resolver cualquier duda.</p>
@@ -540,8 +542,9 @@ document.addEventListener("click", e=>{
     if(a==="contesto" && v==="si" && !c.intentos) patch.intentos=1;
     patchClient(sel,patch); renderDetail(); return; }
   if(t.dataset.act==="int+"||t.dataset.act==="int-"){ patchClient(sel,{intentos:Math.max(0,(c.intentos||0)+(t.dataset.act==="int+"?1:-1))}); renderDetail(); return; }
-  if(t.dataset.act==="instr"){ patchClient(sel,{instr:{[t.dataset.k]:true}}); setTimeout(renderDetail,50); return; }
-  if(t.dataset.act==="cierre"){ patchClient(sel,{cierre:true}); setTimeout(renderDetail,50); return; }
+  if(t.dataset.act==="speechwa"){ const p={waCom:"si"}; if((c.res||"pendiente")==="pendiente") p.res="pendiente_wa"; patchClient(sel,p); setTimeout(renderDetail,50); return; }
+  if(t.dataset.act==="instr"){ patchClient(sel,{instr:{[t.dataset.k]:true},waCom:"si"}); setTimeout(renderDetail,50); return; }
+  if(t.dataset.act==="cierre"){ patchClient(sel,{cierre:true,waCom:"si"}); setTimeout(renderDetail,50); return; }
   if(t.dataset.act==="coordav"){ patchClient(sel,{coordav:"si"}); setTimeout(renderDetail,50); return; }
   if(t.dataset.zona){ patchClient(sel,{zona:t.dataset.zona}); renderDetail(); return; }
 });
@@ -648,13 +651,13 @@ $("#impGo").addEventListener("click", async()=>{
 
 // ---------- Exportación ----------
 function saveBlob(blob,name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000); }
-const HEAD=["Fecha gestión","Altas del día","Responsable","WO instalación","Código conexión","Contrato","Cliente (nombre)","Celular","Departamento","Zona","Técnico instalador","Estado WO","Fallos plataforma",...AUD.map(a=>a[1]),...VID.map(a=>a[1]),"¿Contestó?","Intentos",...QS.map(q=>q[1]),"Instructivos enviados","Resultado","¿Crear WO?","WO inspección #","Especialista / coordinador","Fecha pactada","Franja","Coordinador avisado","Link calificación enviado","Observaciones"];
+const HEAD=["Fecha gestión","Altas del día","Responsable","WO instalación","Código conexión","Contrato","Cliente (nombre)","Celular","Departamento","Zona","Técnico instalador","Estado WO","Fallos plataforma",...AUD.map(a=>a[1]),...VID.map(a=>a[1]),"¿Contestó?","Intentos","¿Comunicación WhatsApp con cliente?",...QS.map(q=>q[1]),"Instructivos enviados","Resultado","¿Crear WO?","WO inspección #","Especialista / coordinador","Fecha pactada","Franja","Coordinador avisado","Link calificación enviado","Observaciones"];
 const V={ok:"OK",no:"No OK",na:"N/A"}, S={si:"Sí",no:"No",na:"N/A"};
 function exportRows(lote){
   return Object.values(clients).filter(c=>c.lote===lote).sort((a,b)=>String(a.resp).localeCompare(b.resp)||String(a.cod).localeCompare(b.cod)).map(c=>[
     c.upd&&c.upd.en?fmt(c.upd.en.slice(0,10)):"",fmt(c.lote),c.resp||"",c.wo,c.cod,c.contrato,c.nombre||"",c.cel,c.dep||"",c.zona||"",c.tec||"",c.estado||"",
     (c.fallos||[]).length?c.fallos.map(f=>f.e+" "+f.r).join(" | "):(c.auditado===false?"No auditado en plataforma":"Sin fallos"),
-    ...AUD.map(([k])=>V[(c.aud||{})[k]]||""),...VID.map(([k])=>V[(c.aud||{})[k]]||""),S[c.contesto]||"",c.intentos||0,
+    ...AUD.map(([k])=>V[(c.aud||{})[k]]||""),...VID.map(([k])=>V[(c.aud||{})[k]]||""),S[c.contesto]||"",c.intentos||0,S[c.waCom]||"",
     ...QS.map(([k])=>S[(c.q||{})[k]]||""),Object.keys(c.instr||{}).filter(k=>c.instr[k]).map(k=>(QS.find(q=>q[0]===k)||[])[2]||k).join(", "),
     RESL[c.res||"pendiente"],suggestion(c)[1],c.woi||"",c.woa||"",fmt(c.wof),c.wofr||"",S[c.coordav]||"",c.cierre?"Sí":"",c.obs||""]);
 }
@@ -682,10 +685,18 @@ $("#delGo").addEventListener("click", async()=>{
 
 // ---------- Arranque ----------
 function renderAll(){ fillLoteSelects(); renderFilters(); renderStats(); renderList(); if(!$("#detail").contains(document.activeElement)) renderDetail(); else pendingRender=true; }
+let _permWarned=false;
+function syncError(e){
+  if(e && (e.code==="permission-denied" || /insufficient permissions/i.test(e.message||""))){
+    setSync("off","Sin permisos: revisa reglas");
+    if(!_permWarned){ _permWarned=true; toast("Firebase rechaza el acceso: publica las reglas de Firestore (allow ... if request.auth != null). Sin eso no carga."); }
+  } else { setSync("off","Sin conexión: se reintenta"); }
+}
 let unsub = null;
 function startData(){
   if(unsub) return;
   unsub = remote.subscribe(data=>{
+    _permWarned=false;
     clients = data || {};
     for(const op of pending) applyOp(op, clients);
     local.c = {...clients}; persistLocal();
@@ -693,7 +704,7 @@ function startData(){
     fillLoteSelects(); renderFilters(); renderStats(); renderList();
     if($("#detail").contains(document.activeElement)) pendingRender=true; else renderDetail();
     setSync("ok","Sincronizado");
-  }, ()=> setSync("off","Sin conexión: se reintenta"));
+  }, syncError);
   flushPending();
 }
 function showLogin(show){ $("#login").hidden=!show; $("#logout").hidden=show; }
